@@ -6,6 +6,7 @@
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/main/client_context.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdlib>
 #include <mutex>
