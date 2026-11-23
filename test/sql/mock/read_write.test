@@ -1,0 +1,47 @@
+# name: test/sql/mock/read_write.test
+# description: httpfs reads, globs and writes gs:// with a token minted by the adc provider
+# group: [mock]
+
+require gcs_adc
+
+require httpfs
+
+require parquet
+
+require-env GCS_ADC_MOCK_PORT
+
+require-env GCS_ADC_MOCK_DIR
+
+statement ok
+CREATE SECRET sa (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE '{GCS_ADC_MOCK_DIR}/service_account.json',
+    ENDPOINT 'localhost:{GCS_ADC_MOCK_PORT}', USE_SSL false, URL_STYLE 'path')
+
+statement ok
+COPY (SELECT range AS i, 'row ' || range AS s FROM range(10000)) TO 'gs://rw-bucket/data/part-1.parquet'
+
+statement ok
+COPY (SELECT range + 10000 AS i, 'row ' || range AS s FROM range(5000)) TO 'gs://rw-bucket/data/part-2.parquet'
+
+statement ok
+COPY (SELECT 42 AS answer) TO 'gs://rw-bucket/other/answer.csv'
+
+query II
+SELECT count(*), sum(i) FROM 'gs://rw-bucket/data/*.parquet'
+----
+15000	112492500
+
+query I
+SELECT count(*) FROM glob('gs://rw-bucket/data/*')
+----
+2
+
+query I
+SELECT answer FROM 'gs://rw-bucket/other/answer.csv'
+----
+42
+
+# gcs:// is covered by the same secret
+query I
+SELECT count(*) FROM 'gcs://rw-bucket/data/part-2.parquet'
+----
+5000

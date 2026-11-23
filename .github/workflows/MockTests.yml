@@ -1,0 +1,44 @@
+#
+# Builds the extension and runs the end-to-end tests against the mock Google server (test/mock/mock_google.py)
+#
+name: Mock GCS Tests
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/main' && github.sha || '' }}
+  cancel-in-progress: true
+
+jobs:
+  mock-tests:
+    name: Linux mock tests
+    runs-on: ubuntu-24.04
+    env:
+      GEN: ninja
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Install build dependencies
+        run: sudo apt-get update -y -qq && sudo apt-get install -y -qq ninja-build ccache libssl-dev libcurl4-openssl-dev
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-mock-${{ hashFiles('.gitmodules', 'extension_config.cmake') }}-${{ github.sha }}
+          restore-keys: ccache-mock-${{ hashFiles('.gitmodules', 'extension_config.cmake') }}-
+
+      - name: Build
+        run: make release
+
+      - name: Unit tests
+        run: ./build/release/test/unittest "test/sql/*.test"
+
+      - name: Mock end-to-end tests
+        run: make test_mock

@@ -1,0 +1,40 @@
+# name: test/sql/mock/external_account.test
+# description: Workload Identity Federation with file- and url-sourced subject tokens
+# group: [mock]
+
+require gcs_adc
+
+require httpfs
+
+require-env GCS_ADC_MOCK_PORT
+
+require-env GCS_ADC_MOCK_DIR
+
+query II
+SELECT credential_source, credential_type FROM gcs_adc_credential_info(
+    credentials_file := '{GCS_ADC_MOCK_DIR}/external_file.json')
+----
+file	external_account
+
+query I
+SELECT credential_type FROM gcs_adc_credential_info(credentials_file := '{GCS_ADC_MOCK_DIR}/external_url.json')
+----
+external_account
+
+query II
+SELECT credential_type, principal FROM gcs_adc_credential_info(
+    credentials_file := '{GCS_ADC_MOCK_DIR}/external_impersonated.json')
+----
+external_account	target@test-project.iam.gserviceaccount.com
+
+statement ok
+CREATE SECRET wif (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE '{GCS_ADC_MOCK_DIR}/external_url.json',
+    ENDPOINT 'localhost:{GCS_ADC_MOCK_PORT}', USE_SSL false, URL_STYLE 'path')
+
+statement ok
+COPY (SELECT 'federated' AS who) TO 'gs://wif-bucket/who.csv'
+
+query I
+SELECT who FROM 'gs://wif-bucket/who.csv'
+----
+federated

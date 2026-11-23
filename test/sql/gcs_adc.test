@@ -1,15 +1,104 @@
 # name: test/sql/gcs_adc.test
-# description: the gcs_adc extension loads and registers its settings
+# description: gcs_adc option validation and credential file errors; needs no network
 # group: [sql]
 
 require gcs_adc
 
-query I
-SELECT current_setting('gcs_adc_metadata_timeout_ms')
-----
-500
+require httpfs
 
+# The provider is registered for the httpfs gcs secret type
 query I
-SELECT current_setting('gcs_adc_token_timeout_ms')
+SELECT count(*) > 0 FROM duckdb_functions() WHERE function_name = 'gcs_adc_credential_info'
 ----
-10000
+true
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, CHAIN 'env;nope')
+----
+unknown CHAIN step 'nope'
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, CHAIN 'env;env')
+----
+is listed more than once
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, CHAIN ';')
+----
+CHAIN must name at least one
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, CHAIN 'env', CREDENTIALS_FILE 'test/fixtures/no_type.json')
+----
+CHAIN and CREDENTIALS_FILE cannot be combined
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE 'x.json', DELEGATES ['a@b.iam.gserviceaccount.com'])
+----
+DELEGATES requires IMPERSONATE_SERVICE_ACCOUNT
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, VALIDATION 'sometimes')
+----
+VALIDATION must be 'exists' or 'none'
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, REFRESH 'often')
+----
+REFRESH must be 'auto' or 'disabled'
+
+# Credential file problems are errors, and never echo file contents
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE 'test/fixtures/does_not_exist.json')
+----
+could not open credential file 'test/fixtures/does_not_exist.json'
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE 'test/fixtures/not_json.json')
+----
+is not a valid JSON object
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE 'test/fixtures/unknown_type.json')
+----
+unsupported credential type 'mystery_account'
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE 'test/fixtures/no_type.json')
+----
+has no 'type' field
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE 'test/fixtures/missing_refresh_token.json')
+----
+is missing the 'refresh_token' field
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE 'test/fixtures/external_aws.json')
+----
+uses a 'aws' credential source, which is not supported yet
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE 'test/fixtures/service_account_bad_key.json')
+----
+is not a valid PEM private key
+
+# VALIDATION 'none' keeps the secret even though no token could be minted
+statement ok
+CREATE SECRET lazy (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE 'test/fixtures/does_not_exist.json', VALIDATION 'none')
+
+query III
+SELECT name, type, provider FROM duckdb_secrets() WHERE name = 'lazy'
+----
+lazy	gcs	adc
+
+# The diagnostic function reports the same errors
+statement error
+SELECT * FROM gcs_adc_credential_info(credentials_file := 'test/fixtures/unknown_type.json')
+----
+unsupported credential type 'mystery_account'
+
+statement error
+SELECT * FROM gcs_adc_credential_info(chain := 'bogus')
+----
+unknown CHAIN step 'bogus'

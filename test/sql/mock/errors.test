@@ -1,0 +1,33 @@
+# name: test/sql/mock/errors.test
+# description: token endpoint failures and an empty chain produce actionable errors
+# group: [mock]
+
+require gcs_adc
+
+require httpfs
+
+require-env GCS_ADC_MOCK_PORT
+
+require-env GCS_ADC_MOCK_DIR
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE '{GCS_ADC_MOCK_DIR}/bad_refresh_token.json')
+----
+400 invalid_grant: Token has been expired or revoked.). Run 'gcloud auth application-default login' again.
+
+# A chain where nothing is found lists every attempt
+statement ok
+SELECT * FROM read_text('http://localhost:{GCS_ADC_MOCK_PORT}/__control?metadata=off')
+
+statement error
+CREATE SECRET (TYPE gcs, PROVIDER adc, CHAIN 'metadata')
+----
+could not find Application Default Credentials. Tried:
+
+statement error
+SELECT * FROM gcs_adc_credential_info(chain := 'metadata')
+----
+answered HTTP 404
+
+statement ok
+SELECT * FROM read_text('http://localhost:{GCS_ADC_MOCK_PORT}/__control?metadata=on')

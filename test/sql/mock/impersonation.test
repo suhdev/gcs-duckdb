@@ -1,0 +1,54 @@
+# name: test/sql/mock/impersonation.test
+# description: service account impersonation, through the option and through the credential file type
+# group: [mock]
+
+require gcs_adc
+
+require httpfs
+
+require-env GCS_ADC_MOCK_PORT
+
+require-env GCS_ADC_MOCK_DIR
+
+statement ok
+SET gcs_adc_iam_endpoint = 'http://localhost:{GCS_ADC_MOCK_PORT}'
+
+# IMPERSONATE_SERVICE_ACCOUNT on top of the env (authorized_user) credential
+query II
+SELECT credential_type, principal FROM gcs_adc_credential_info(
+    impersonate_service_account := 'target@test-project.iam.gserviceaccount.com')
+----
+authorized_user	target@test-project.iam.gserviceaccount.com
+
+query I
+SELECT principal FROM gcs_adc_credential_info(
+    impersonate_service_account := 'target@test-project.iam.gserviceaccount.com',
+    delegates := ['middle@test-project.iam.gserviceaccount.com'])
+----
+target@test-project.iam.gserviceaccount.com
+
+# A 403 from IAM explains the missing role
+statement error
+SELECT * FROM gcs_adc_credential_info(impersonate_service_account := 'other@test-project.iam.gserviceaccount.com')
+----
+roles/iam.serviceAccountTokenCreator
+
+# impersonated_service_account files (gcloud auth application-default login --impersonate-service-account)
+query III
+SELECT credential_source, credential_type, principal FROM gcs_adc_credential_info(
+    credentials_file := '{GCS_ADC_MOCK_DIR}/impersonated.json')
+----
+file	impersonated_service_account	target@test-project.iam.gserviceaccount.com
+
+# And end-to-end through a secret
+statement ok
+CREATE SECRET imp (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE '{GCS_ADC_MOCK_DIR}/impersonated.json',
+    ENDPOINT 'localhost:{GCS_ADC_MOCK_PORT}', USE_SSL false, URL_STYLE 'path')
+
+statement ok
+COPY (SELECT 7 AS seven) TO 'gs://imp-bucket/seven.csv'
+
+query I
+SELECT seven FROM 'gs://imp-bucket/seven.csv'
+----
+7
