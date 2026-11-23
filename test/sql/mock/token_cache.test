@@ -1,0 +1,62 @@
+# name: test/sql/mock/token_cache.test
+# description: secrets that share a credential share one minted token
+# group: [mock]
+
+require gcs_adc
+
+require httpfs
+
+require-env GCS_ADC_MOCK_PORT
+
+require-env GCS_ADC_MOCK_DIR
+
+statement ok
+CREATE TABLE before AS SELECT gcs_adc_token_mint_count() AS n
+
+# A scope list no other test uses, so the first secret is a cache miss
+statement ok
+CREATE SECRET c1 (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE '{GCS_ADC_MOCK_DIR}/service_account.json',
+    OAUTH_SCOPES ['https://www.googleapis.com/auth/devstorage.read_only', 'urn:test:token-cache'], SCOPE 'gs://c1')
+
+statement ok
+CREATE SECRET c2 (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE '{GCS_ADC_MOCK_DIR}/service_account.json',
+    OAUTH_SCOPES ['https://www.googleapis.com/auth/devstorage.read_only', 'urn:test:token-cache'], SCOPE 'gs://c2')
+
+statement ok
+SELECT * FROM gcs_adc_credential_info(credentials_file := '{GCS_ADC_MOCK_DIR}/service_account.json',
+    oauth_scopes := ['https://www.googleapis.com/auth/devstorage.read_only', 'urn:test:token-cache'])
+
+query I
+SELECT gcs_adc_token_mint_count() - (SELECT n FROM before)
+----
+1
+
+# CREATE OR REPLACE (which is also how httpfs refreshes) always mints
+statement ok
+CREATE OR REPLACE SECRET c2 (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE '{GCS_ADC_MOCK_DIR}/service_account.json',
+    OAUTH_SCOPES ['https://www.googleapis.com/auth/devstorage.read_only', 'urn:test:token-cache'], SCOPE 'gs://c2')
+
+query I
+SELECT gcs_adc_token_mint_count() - (SELECT n FROM before)
+----
+2
+
+# A token close to expiry is not reused: the mock now issues 60-second tokens
+statement ok
+SELECT * FROM read_text('http://localhost:{GCS_ADC_MOCK_PORT}/__control?token_lifetime=60')
+
+statement ok
+CREATE OR REPLACE SECRET c2 (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE '{GCS_ADC_MOCK_DIR}/service_account.json',
+    OAUTH_SCOPES ['https://www.googleapis.com/auth/devstorage.read_only', 'urn:test:token-cache'], SCOPE 'gs://c2')
+
+statement ok
+CREATE SECRET c3 (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE '{GCS_ADC_MOCK_DIR}/service_account.json',
+    OAUTH_SCOPES ['https://www.googleapis.com/auth/devstorage.read_only', 'urn:test:token-cache'], SCOPE 'gs://c3')
+
+statement ok
+SELECT * FROM read_text('http://localhost:{GCS_ADC_MOCK_PORT}/__control?token_lifetime=3600')
+
+query I
+SELECT gcs_adc_token_mint_count() - (SELECT n FROM before)
+----
+4

@@ -1,0 +1,65 @@
+# name: test/sql/mock/refresh.test
+# description: when GCS rejects the token, httpfs re-runs the adc provider and the query succeeds
+# group: [mock]
+
+require gcs_adc
+
+require httpfs
+
+require json
+
+require-env GCS_ADC_MOCK_PORT
+
+require-env GCS_ADC_MOCK_DIR
+
+statement ok
+CREATE SECRET sa (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE '{GCS_ADC_MOCK_DIR}/service_account.json',
+    ENDPOINT 'localhost:{GCS_ADC_MOCK_PORT}', USE_SSL false, URL_STYLE 'path')
+
+statement ok
+COPY (SELECT range AS i FROM range(100)) TO 'gs://refresh-bucket/t.csv'
+
+query I
+SELECT count(*) FROM 'gs://refresh-bucket/t.csv'
+----
+100
+
+# The mock forgets every token it issued, so the secret's token is now rejected with 401
+statement ok
+SELECT * FROM read_text('http://localhost:{GCS_ADC_MOCK_PORT}/__control?revoke_all=1&reset_stats=1')
+
+query I
+SELECT count(*) FROM 'gs://refresh-bucket/t.csv'
+----
+100
+
+# GCS did reject the old token, and a new one was minted with a jwt-bearer grant
+query II
+SELECT gcs_unauthorized >= 1, jwt_bearer >= 1 FROM read_json('http://localhost:{GCS_ADC_MOCK_PORT}/__stats')
+----
+true	true
+
+# Writes refresh too
+statement ok
+SELECT * FROM read_text('http://localhost:{GCS_ADC_MOCK_PORT}/__control?revoke_all=1')
+
+statement ok
+COPY (SELECT 1 AS x) TO 'gs://refresh-bucket/after-revoke.csv'
+
+query I
+SELECT x FROM 'gs://refresh-bucket/after-revoke.csv'
+----
+1
+
+# With REFRESH 'disabled' a rejected token stays rejected
+statement ok
+CREATE OR REPLACE SECRET sa (TYPE gcs, PROVIDER adc, CREDENTIALS_FILE '{GCS_ADC_MOCK_DIR}/service_account.json',
+    ENDPOINT 'localhost:{GCS_ADC_MOCK_PORT}', USE_SSL false, URL_STYLE 'path', REFRESH 'disabled')
+
+statement ok
+SELECT * FROM read_text('http://localhost:{GCS_ADC_MOCK_PORT}/__control?revoke_all=1')
+
+statement error
+SELECT count(*) FROM 'gs://refresh-bucket/t.csv'
+----
+401

@@ -1,0 +1,86 @@
+# name: test/sql/mock/sources.test
+# description: every ADC source and credential type resolves against the mock Google server
+# group: [mock]
+
+require gcs_adc
+
+require httpfs
+
+require icu
+
+require-env GCS_ADC_MOCK_PORT
+
+require-env GCS_ADC_MOCK_DIR
+
+# Default chain: GOOGLE_APPLICATION_CREDENTIALS points at an authorized_user file
+query IIIII
+SELECT credential_source, credential_type, principal, quota_project_id, attempts FROM gcs_adc_credential_info()
+----
+env	authorized_user	NULL	quota-project	[]
+
+# gcloud well-known file ($CLOUDSDK_CONFIG) holds a service_account key, signed with RS256
+query IIII
+SELECT credential_source, credential_type, principal, scopes FROM gcs_adc_credential_info(chain := 'gcloud')
+----
+gcloud	service_account	reader@test-project.iam.gserviceaccount.com	['https://www.googleapis.com/auth/devstorage.read_write']
+
+# Metadata server ($GCE_METADATA_HOST)
+query IIII
+SELECT credential_source, credential_type, principal, credentials_path FROM gcs_adc_credential_info(chain := 'metadata')
+----
+metadata	gce_metadata	default@test-project.iam.gserviceaccount.com	NULL
+
+# Explicit file, custom scopes
+query III
+SELECT credential_source, credential_type, scopes FROM gcs_adc_credential_info(
+    credentials_file := '{GCS_ADC_MOCK_DIR}/service_account.json',
+    oauth_scopes := ['https://www.googleapis.com/auth/devstorage.read_only'])
+----
+file	service_account	['https://www.googleapis.com/auth/devstorage.read_only']
+
+# Tokens are valid for about an hour
+query I
+SELECT token_expires_at BETWEEN now() + INTERVAL 50 MINUTE AND now() + INTERVAL 61 MINUTE FROM gcs_adc_credential_info()
+----
+true
+
+# The secret records where the token came from, and never shows the token
+statement ok
+CREATE SECRET s_env (TYPE gcs, PROVIDER adc)
+
+query I
+SELECT secret_string LIKE '%credential_source=env%' AND secret_string LIKE '%credential_type=authorized_user%' FROM duckdb_secrets() WHERE name = 's_env'
+----
+true
+
+query I
+SELECT secret_string LIKE '%ya29.%' FROM duckdb_secrets() WHERE name = 's_env'
+----
+false
+
+query I
+SELECT secret_string LIKE '%bearer_token=redacted%' FROM duckdb_secrets() WHERE name = 's_env'
+----
+true
+
+# USE_QUOTA_PROJECT copies quota_project_id into USER_PROJECT, and only when asked
+statement ok
+CREATE SECRET s_quota (TYPE gcs, PROVIDER adc, USE_QUOTA_PROJECT true)
+
+query I
+SELECT secret_string LIKE '%user_project=quota-project%' FROM duckdb_secrets() WHERE name = 's_quota'
+----
+true
+
+query I
+SELECT secret_string LIKE '%user_project%' FROM duckdb_secrets() WHERE name = 's_env'
+----
+false
+
+statement ok
+CREATE SECRET s_quota2 (TYPE gcs, PROVIDER adc, USE_QUOTA_PROJECT true, USER_PROJECT 'explicit')
+
+query I
+SELECT secret_string LIKE '%user_project=explicit%' FROM duckdb_secrets() WHERE name = 's_quota2'
+----
+true
