@@ -20,8 +20,21 @@ set(CMAKE_CXX_STANDARD
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories(src/include)
+# DuckDB's bundled yyjson (C++ extensions statically link DuckDB, which contains
+# it)
+include_directories(${CMAKE_SOURCE_DIR}/third_party/yyjson/include)
 
-set(EXTENSION_SOURCES src/gcs_adc_extension.cpp)
+set(EXTENSION_SOURCES
+    src/gcs_adc_extension.cpp
+    src/adc_secret_provider.cpp
+    src/credential_info_function.cpp
+    src/adc/credential_chain.cpp
+    src/adc/credential_file.cpp
+    src/adc/encoding.cpp
+    src/adc/http_client.cpp
+    src/adc/json.cpp
+    src/adc/jwt.cpp
+    src/adc/token_minter.cpp)
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
 build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES})

@@ -2,11 +2,19 @@
 
 #include "gcs_adc_extension.hpp"
 
+#include "adc/credential_chain.hpp"
+#include "adc_secret_provider.hpp"
+#include "duckdb/function/scalar_function.hpp"
 #include "duckdb/main/config.hpp"
 #include "duckdb/main/extension/extension_loader.hpp"
 #include "duckdb/main/extension_helper.hpp"
 
 namespace duckdb {
+
+static void TokenMintCountFunction(DataChunk &args, ExpressionState &state, Vector &result) {
+	result.SetVectorType(VectorType::CONSTANT_VECTOR);
+	ConstantVector::GetData<int64_t>(result)[0] = NumericCast<int64_t>(gcs_adc::TokenMintCount());
+}
 
 static void LoadInternal(ExtensionLoader &loader) {
 	auto &db = loader.GetDatabaseInstance();
@@ -23,6 +31,14 @@ static void LoadInternal(ExtensionLoader &loader) {
 	config.AddExtensionOption("gcs_adc_iam_endpoint",
 	                          "Base URL of the IAM Credentials API used for service account impersonation",
 	                          LogicalType::VARCHAR, Value("https://iamcredentials.googleapis.com"));
+
+	gcs_adc::RegisterAdcSecretProvider(loader);
+	gcs_adc::RegisterCredentialInfoFunction(loader);
+
+	// Diagnostic: how many tokens this process has minted (cache misses). Used by the token-cache tests.
+	ScalarFunction mint_count("gcs_adc_token_mint_count", {}, LogicalType::BIGINT, TokenMintCountFunction);
+	mint_count.SetStability(FunctionStability::VOLATILE);
+	loader.RegisterFunction(mint_count);
 }
 
 void GcsAdcExtension::Load(ExtensionLoader &loader) {
