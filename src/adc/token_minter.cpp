@@ -12,7 +12,7 @@
 namespace duckdb {
 namespace gcs_adc {
 
-const char *CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
+const char *const CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 
 static constexpr const char *FORM_CONTENT_TYPE = "application/x-www-form-urlencoded";
 static constexpr const char *JSON_CONTENT_TYPE = "application/json";

@@ -128,8 +128,7 @@ static string ProbeMetadataServer(ClientContext &context, const AdcOptions &opti
 			}
 			failures.push_back(host + " answered without 'Metadata-Flavor: Google'");
 		} else if (result.status == 0) {
-			failures.push_back(StringUtil::Format("%s did not respond within %llu ms", host,
-			                                      static_cast<unsigned long long>(options.metadata_timeout_ms)));
+			failures.push_back(host + " did not respond within " + to_string(options.metadata_timeout_ms) + " ms");
 		} else {
 			failures.push_back(StringUtil::Format("%s answered HTTP %d", host, result.status));
 		}
@@ -220,7 +219,10 @@ TokenCache &GetTokenCache() {
 	return cache;
 }
 
-std::atomic<idx_t> mint_count {0};
+std::atomic<idx_t> &MintCounter() {
+	static std::atomic<idx_t> counter {0};
+	return counter;
+}
 } // namespace
 
 static string CacheKey(const ResolvedCredential &resolved, const AdcOptions &options) {
@@ -252,14 +254,14 @@ AccessToken GetAccessToken(ClientContext &context, const ResolvedCredential &res
 		return entry->token;
 	}
 	auto token = MintAccessToken(context, *resolved.credential, options);
-	mint_count++;
+	MintCounter()++;
 	entry->token = token;
 	entry->has_token = true;
 	return token;
 }
 
 idx_t TokenMintCount() {
-	return mint_count.load();
+	return MintCounter().load();
 }
 
 } // namespace gcs_adc
