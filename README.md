@@ -13,6 +13,8 @@ SELECT * FROM 'gs://my-bucket/events/*.parquet';
 COPY (SELECT * FROM my_table) TO 'gs://my-bucket/out/my_table.parquet';
 ```
 
+**Documentation: <https://suhdev.github.io/gcs-duckdb/>**
+
 ## How it works
 
 DuckDB's `httpfs` extension already reads, globs and writes `gs://` paths, and its `gcs` secret accepts an OAuth2
@@ -123,7 +125,9 @@ GEN=ninja make release
 ```
 
 The loadable extension is written to `build/release/repository/<duckdb commit>/<platform>/gcs_adc.duckdb_extension`.
-Until it is published, load it with `duckdb -unsigned` and `LOAD '/path/to/gcs_adc.duckdb_extension'`.
+Prebuilt binaries for every platform are attached to each [GitHub release](https://github.com/suhdev/gcs-duckdb/releases).
+Load either with `duckdb -unsigned` and `LOAD '/path/to/gcs_adc.duckdb_extension'`. See
+[Installation](https://suhdev.github.io/gcs-duckdb/installation/).
 
 ## Testing
 
@@ -134,6 +138,11 @@ make test_mock                                # end-to-end against test/mock/moc
 
 The mock server fakes the OAuth2, STS, IAM Credentials and metadata endpoints plus a small GCS XML API, so reads,
 writes, globbing, token refresh, impersonation and Workload Identity Federation are all tested without a GCP account.
+
+## Releasing
+
+Push a `v*` tag; `.github/workflows/Release.yml` builds every platform and publishes a GitHub release. See
+[Releasing](https://suhdev.github.io/gcs-duckdb/releasing/).
 
 ## Updating DuckDB
 

@@ -4,6 +4,8 @@
 name: Mock GCS Tests
 on:
   push:
+    # Tags are built by Release.yml
+    branches: ['**']
   pull_request:
   workflow_dispatch:
 

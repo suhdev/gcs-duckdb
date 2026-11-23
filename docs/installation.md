@@ -1,0 +1,86 @@
+# Installation
+
+`gcs_adc` is built for **DuckDB v2.0.1**. A DuckDB extension only loads into the DuckDB version it was built for, so
+check your version with `SELECT version();`.
+
+`gcs_adc` needs the `httpfs` extension, which does the storage I/O. It is autoloaded when you load `gcs_adc`, or you
+can load it yourself first:
+
+```sql
+INSTALL httpfs;
+LOAD httpfs;
+```
+
+## From a GitHub release
+
+Each [release](https://github.com/suhdev/gcs-duckdb/releases) has a binary for every supported platform, named
+`gcs_adc.<platform>.duckdb_extension.gz` (for example `linux_amd64`, `linux_arm64`, `osx_arm64`, `osx_amd64`,
+`windows_amd64`). Download and unpack the one for your platform:
+
+```sh
+curl -LO https://github.com/suhdev/gcs-duckdb/releases/latest/download/gcs_adc.linux_amd64.duckdb_extension.gz
+gunzip gcs_adc.linux_amd64.duckdb_extension.gz
+```
+
+These binaries are not signed by DuckDB, so start DuckDB with unsigned extensions allowed:
+
+=== "CLI"
+
+    ```sh
+    duckdb -unsigned
+    ```
+
+    ```sql
+    LOAD '/path/to/gcs_adc.linux_amd64.duckdb_extension';
+    ```
+
+=== "Python"
+
+    ```python
+    import duckdb
+
+    con = duckdb.connect(config={"allow_unsigned_extensions": "true"})
+    con.execute("LOAD '/path/to/gcs_adc.linux_amd64.duckdb_extension'")
+    ```
+
+Every release also includes `SHA256SUMS`, so you can check what you downloaded:
+
+```sh
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+## From the community extension repository
+
+Publishing to [DuckDB Community Extensions](https://duckdb.org/community_extensions/) is planned. Once it is
+published you will be able to run:
+
+```sql
+INSTALL gcs_adc FROM community;
+LOAD gcs_adc;
+```
+
+## From source
+
+You need CMake, Ninja, a C++17 compiler, and the OpenSSL and libcurl development headers (or
+[vcpkg](https://vcpkg.io)).
+
+```sh
+git clone --recurse-submodules https://github.com/suhdev/gcs-duckdb
+cd gcs-duckdb
+GEN=ninja make release
+```
+
+The build produces:
+
+| Path | What |
+| --- | --- |
+| `build/release/duckdb` | DuckDB shell |
+| `build/release/repository/<commit>/<platform>/gcs_adc.duckdb_extension` | The loadable extension |
+| `build/release/repository/<commit>/<platform>/httpfs.duckdb_extension` | A matching httpfs |
+| `build/release/test/unittest` | Test runner |
+
+On Debian or Ubuntu the dependencies are:
+
+```sh
+sudo apt-get install -y cmake ninja-build g++ libssl-dev libcurl4-openssl-dev
+```
