@@ -1,0 +1,15 @@
+# name: test/sql/gcs_adc.test
+# description: the gcs_adc extension loads and registers its settings
+# group: [sql]
+
+require gcs_adc
+
+query I
+SELECT current_setting('gcs_adc_metadata_timeout_ms')
+----
+500
+
+query I
+SELECT current_setting('gcs_adc_token_timeout_ms')
+----
+10000
