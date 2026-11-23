@@ -37,7 +37,7 @@ string ReadCredentialFile(ClientContext &context, const string &path, int64_t &m
 		throw IOException("gcs_adc: could not open credential file '%s': %s", path, error.RawMessage());
 	}
 	auto size = handle->GetFileSize();
-	if (size > 1024 * 1024) {
+	if (size > idx_t(1024) * 1024) {
 		throw IOException("gcs_adc: credential file '%s' is larger than 1 MiB", path);
 	}
 	string result;

@@ -6,7 +6,7 @@ namespace duckdb {
 namespace gcs_adc {
 
 //! The scope requested for a source token that is only used to call IAM Credentials or STS on the way to impersonating
-extern const char *CLOUD_PLATFORM_SCOPE;
+extern const char *const CLOUD_PLATFORM_SCOPE;
 
 //! Seconds since the Unix epoch
 int64_t NowEpochSeconds();
