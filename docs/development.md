@@ -31,7 +31,7 @@ GEN=ninja make release      # or: make debug
 ```
 
 `extension_config.cmake` builds `httpfs` (pinned to the commit DuckDB v2.0.1 uses) next to `gcs_adc`, so the tests
-can do real I/O. The first build compiles DuckDB itself and takes a while; after that, changes to `src/` rebuild in
+can do real I/O. It also builds `ui` (pinned to duckdb-ui's DuckDB v2.0.1 commit) so releases can ship it. The first build compiles DuckDB itself and takes a while; after that, changes to `src/` rebuild in
 seconds. Installing `ccache` helps a lot.
 
 ## Testing

@@ -49,6 +49,33 @@ Every release also includes `SHA256SUMS`, so you can check what you downloaded:
 sha256sum -c SHA256SUMS --ignore-missing
 ```
 
+### httpfs, the UI and the other bundled extensions
+
+Each release also ships the extensions built alongside `gcs_adc` from the same DuckDB v2.0.1 build: `httpfs`, `ui`
+(the DuckDB web UI) and DuckDB's own `json`, `parquet`, `icu` and `core_functions`. Each one comes as
+`<extension>.<platform>.duckdb_extension.gz`, and they also come together as `gcs_adc-extensions.<platform>.tar.gz`.
+
+The easiest setup is to unpack the bundle into DuckDB's extension directory, so a plain `LOAD` finds them:
+
+```sh
+platform=osx_arm64   # or linux_amd64, linux_arm64, osx_amd64, windows_amd64
+dir=~/.duckdb/extensions/v2.0.1/$platform
+mkdir -p "$dir"
+curl -L https://github.com/suhdev/gcs-duckdb/releases/latest/download/gcs_adc-extensions.$platform.tar.gz \
+  | tar -xz -C "$dir"
+```
+
+```sql
+-- duckdb -unsigned
+LOAD gcs_adc;
+CREATE SECRET (TYPE gcs, PROVIDER adc);
+LOAD ui;
+CALL start_ui();
+```
+
+Like `gcs_adc`, these builds are not signed by DuckDB, so they also need `-unsigned`. Running `INSTALL ui` or
+`INSTALL httpfs` later replaces them with DuckDB's signed builds, which work just as well for v2.0.1.
+
 ## From the community extension repository
 
 Publishing to [DuckDB Community Extensions](https://duckdb.org/community_extensions/) is planned. Once it is

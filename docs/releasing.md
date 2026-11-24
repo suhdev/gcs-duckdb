@@ -18,6 +18,8 @@ Releases are built and published by `.github/workflows/Release.yml`.
     | Asset | Contents |
     | --- | --- |
     | `gcs_adc.<platform>.duckdb_extension.gz` | The loadable extension for `<platform>` (`linux_amd64`, `linux_arm64`, `osx_amd64`, `osx_arm64`, `windows_amd64`, …) |
+    | `httpfs`, `ui`, `json`, `parquet`, `icu`, `core_functions` `.<platform>.duckdb_extension.gz` | The other extensions built in the same DuckDB build (`ui` and `httpfs` are pinned in `extension_config.cmake`) |
+    | `gcs_adc-extensions.<platform>.tar.gz` | All of the above for one platform, ready to unpack into `~/.duckdb/extensions/v2.0.1/<platform>/` |
     | `SHA256SUMS` | Checksums of the `.gz` files |
 
     The MinGW Windows build (`windows_amd64_mingw`) is not part of releases. Windows users get the MSVC `windows_amd64` build.
