@@ -12,3 +12,10 @@ duckdb_extension_load(httpfs
     GIT_URL https://github.com/duckdb/duckdb-httpfs
     GIT_TAG f71cfdb4bff85b9e15b1f3b842d9aa395aff0167
 )
+
+# The DuckDB UI, built for the same DuckDB version so releases can ship it next to gcs_adc.
+# b19dfd5 is duckdb-ui's "upgrade to duckdb v2.0.1" commit.
+duckdb_extension_load(ui
+    GIT_URL https://github.com/duckdb/duckdb-ui
+    GIT_TAG b19dfd587ff5491f9fc7b8a2e9d59a74bfc0b547
+)

@@ -10,6 +10,10 @@ as follows:
   - `duckdb_version` input in `duckdb-stable-build` job in `MainDistributionPipeline.yml` should be set to latest tagged release
   - `duckdb_version` input in `duckdb-stable-deploy` job in `MainDistributionPipeline.yml` should be set to latest tagged release
   - the reusable workflow `duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml` for the `duckdb-stable-build` job should be set to latest tagged release
+  - the same inputs in `Release.yml`
+- Bump the `GIT_TAG` pins in `extension_config.cmake`
+  - `httpfs`: the commit in `duckdb/.github/config/extensions/httpfs.cmake` of the new DuckDB release
+  - `ui`: the `duckdb/duckdb-ui` commit that upgrades it to the new DuckDB release (its `duckdb` submodule matches yours)
 
 # API changes
 DuckDB extensions built with this extension template are built against the internal C++ API of DuckDB. This API is not guaranteed to be stable.

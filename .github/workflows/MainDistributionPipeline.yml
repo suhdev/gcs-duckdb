@@ -31,4 +31,25 @@ jobs:
       duckdb_version: v2.0.1
       ci_tools_version: v2.0-cyanoptera
       extension_name: gcs_adc
-      format_checks: 'format;tidy'
+      # Tidy runs below: the shared job does not install the curl headers httpfs needs to configure
+      format_checks: 'format'
+
+  tidy-check:
+    name: Tidy Check
+    runs-on: ubuntu-24.04
+    env:
+      CC: gcc
+      CXX: g++
+      GEN: ninja
+      TIDY_THREADS: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: 'recursive'
+
+      - name: Install
+        run: sudo apt-get update -y -qq && sudo apt-get install -y -qq ninja-build clang-tidy libcurl4-openssl-dev libssl-dev
+
+      - name: Tidy Check
+        run: make tidy-check

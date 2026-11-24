@@ -49,6 +49,33 @@ Every release also includes `SHA256SUMS`, so you can check what you downloaded:
 sha256sum -c SHA256SUMS --ignore-missing
 ```
 
+### httpfs, the UI and the other bundled extensions
+
+Each release also ships the extensions built alongside `gcs_adc` from the same DuckDB v2.0.1 build: `httpfs`, `ui`
+(the DuckDB web UI) and DuckDB's own `json`, `parquet`, `icu` and `core_functions`. Each one comes as
+`<extension>.<platform>.duckdb_extension.gz`, and they also come together as `gcs_adc-extensions.<platform>.tar.gz`.
+
+The easiest setup is to unpack the bundle into DuckDB's extension directory, so a plain `LOAD` finds them:
+
+```sh
+platform=osx_arm64   # or linux_amd64, linux_arm64, osx_amd64, windows_amd64
+dir=~/.duckdb/extensions/v2.0.1/$platform
+mkdir -p "$dir"
+curl -L https://github.com/suhdev/gcs-duckdb/releases/latest/download/gcs_adc-extensions.$platform.tar.gz \
+  | tar -xz -C "$dir"
+```
+
+```sql
+-- duckdb -unsigned
+LOAD gcs_adc;
+CREATE SECRET (TYPE gcs, PROVIDER adc);
+LOAD ui;
+CALL start_ui();
+```
+
+Like `gcs_adc`, these builds are not signed by DuckDB, so they also need `-unsigned`. Running `INSTALL ui` or
+`INSTALL httpfs` later replaces them with DuckDB's signed builds, which work just as well for v2.0.1.
+
 ## From the community extension repository
 
 Publishing to [DuckDB Community Extensions](https://duckdb.org/community_extensions/) is planned. Once it is
@@ -84,3 +111,18 @@ On Debian or Ubuntu the dependencies are:
 ```sh
 sudo apt-get install -y cmake ninja-build g++ libssl-dev libcurl4-openssl-dev
 ```
+
+On macOS, install the Xcode command line tools and the rest from Homebrew. libcurl comes with the macOS SDK.
+Homebrew's OpenSSL is not linked into the default search paths, so point CMake at it:
+
+```sh
+xcode-select --install
+brew install cmake ninja openssl@3 ccache
+export OPENSSL_ROOT_DIR="$(brew --prefix openssl@3)"
+
+git clone --recurse-submodules https://github.com/suhdev/gcs-duckdb
+cd gcs-duckdb
+GEN=ninja make release
+```
+
+The mock tests (`make test_mock`) also need `python3` and `openssl` on the `PATH`, and both are included in macOS.

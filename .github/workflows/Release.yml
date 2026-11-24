@@ -36,9 +36,11 @@ jobs:
       duckdb_version: v2.0.1
       ci_tools_version: v2.0-cyanoptera
       extension_name: gcs_adc
-      exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads'
+      exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_mingw'
       # Releases need every architecture, not the reduced PR matrix
       reduced_ci_mode: disabled
+      # Ship httpfs, ui and the other extensions built with gcs_adc, not just gcs_adc
+      upload_all_extensions: true
       override_repository: ${{ github.repository }}
       override_ref: ${{ inputs.tag || github.ref_name }}
 
@@ -61,13 +63,23 @@ jobs:
           mkdir -p dist
           for dir in artifacts/gcs_adc-*-extension-*; do
             platform="${dir##*-extension-}"
-            binary="$(find "$dir" -name 'gcs_adc.duckdb_extension' -not -path '*/test-support/*' | head -n 1)"
-            if [ -z "$binary" ]; then
-              echo "::error::no gcs_adc.duckdb_extension in $dir"
-              exit 1
-            fi
-            gzip -9 -c "$binary" > "dist/gcs_adc.${platform}.duckdb_extension.gz"
+            mapfile -t binaries < <(find "$dir" -name '*.duckdb_extension' -not -path '*/test-support/*' | sort)
+            for required in gcs_adc httpfs ui; do
+              if ! printf '%s\n' "${binaries[@]}" | grep -q "/${required}.duckdb_extension$"; then
+                echo "::error::no ${required}.duckdb_extension in $dir"
+                exit 1
+              fi
+            done
+            bundle="dist/stage/${platform}"
+            mkdir -p "$bundle"
+            for binary in "${binaries[@]}"; do
+              name="$(basename "$binary" .duckdb_extension)"
+              gzip -9 -c "$binary" > "dist/${name}.${platform}.duckdb_extension.gz"
+              cp "$binary" "$bundle/"
+            done
+            tar -C "$bundle" -czf "dist/gcs_adc-extensions.${platform}.tar.gz" .
           done
+          rm -rf dist/stage
           (cd dist && sha256sum *.gz > SHA256SUMS)
           ls -l dist
           cat dist/SHA256SUMS
