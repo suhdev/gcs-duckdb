@@ -36,7 +36,7 @@ jobs:
       duckdb_version: v2.0.1
       ci_tools_version: v2.0-cyanoptera
       extension_name: gcs_adc
-      exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads'
+      exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_mingw'
       # Releases need every architecture, not the reduced PR matrix
       reduced_ci_mode: disabled
       override_repository: ${{ github.repository }}
