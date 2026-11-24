@@ -18,9 +18,9 @@ Releases are built and published by `.github/workflows/Release.yml`.
     | Asset | Contents |
     | --- | --- |
     | `gcs_adc.<platform>.duckdb_extension.gz` | The loadable extension for `<platform>` (`linux_amd64`, `linux_arm64`, `osx_amd64`, `osx_arm64`, `windows_amd64`, …) |
-
-The MinGW Windows build (`windows_amd64_mingw`) is not part of releases; Windows users get the MSVC `windows_amd64` build.
     | `SHA256SUMS` | Checksums of the `.gz` files |
+
+    The MinGW Windows build (`windows_amd64_mingw`) is not part of releases. Windows users get the MSVC `windows_amd64` build.
 
 Tags with a pre-release suffix (`v0.2.0-rc.1`) are published as pre-releases.
 
