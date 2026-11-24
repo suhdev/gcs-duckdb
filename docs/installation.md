@@ -84,3 +84,18 @@ On Debian or Ubuntu the dependencies are:
 ```sh
 sudo apt-get install -y cmake ninja-build g++ libssl-dev libcurl4-openssl-dev
 ```
+
+On macOS, install the Xcode command line tools and the rest from Homebrew. libcurl comes with the macOS SDK.
+Homebrew's OpenSSL is not linked into the default search paths, so point CMake at it:
+
+```sh
+xcode-select --install
+brew install cmake ninja openssl@3 ccache
+export OPENSSL_ROOT_DIR="$(brew --prefix openssl@3)"
+
+git clone --recurse-submodules https://github.com/suhdev/gcs-duckdb
+cd gcs-duckdb
+GEN=ninja make release
+```
+
+The mock tests (`make test_mock`) also need `python3` and `openssl` on the `PATH`, and both are included in macOS.
